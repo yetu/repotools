@@ -63,8 +63,5 @@ def main():
     if os.path.isfile(f):
       handle_local_manifest(rel_repo_dir, f)
 
-  hash = get_hash("/home/till/yetu-os2/src/third_party/yetu-overlay")
-  print("Got hash %s"%hash)
-
 if __name__ == "__main__":
   main()
