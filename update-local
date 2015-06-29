@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+
+import git_common
+import os
+
+import xml.etree.ElementTree as ET
+
+repodir = '.repo'               # name of repo's private directory
+S_repo = 'repo'                 # special repo repository
+S_manifests = 'manifests'       # special manifest repository
+S_local_manifests = 'local_manifests'
+REPO_MAIN = S_repo + '/main.py' # main script
+
+def _FindRepo():
+  """Look for a repo installation, starting at the current directory.
+  """
+  curdir = os.getcwd()
+  repo = None
+
+  olddir = None
+  while curdir != '/' \
+    and curdir != olddir \
+    and not repo:
+    repo = os.path.join(curdir, repodir, REPO_MAIN)
+    if not os.path.isfile(repo):
+      repo = None
+      olddir = curdir
+      curdir = os.path.dirname(curdir)
+  return (repo, os.path.join(curdir, repodir))
+
+def get_hash(path):
+  os.chdir(path)
+  return git_common.hash_one("HEAD")
+
+def handle_local_manifest(repo_main,path):
+  root_path = os.path.dirname(repo_main)
+  if not path.endswith(".xml"):
+    return False
+  print("Handling manifest file %s"%path)
+  tree = ET.parse(path)
+  root = tree.getroot()
+  if root.tag != 'manifest':
+    print("File %s does not seem to be a manifest file"%path)
+    return False
+  file_changed = False
+  for child in root:
+    if child.tag == 'project':
+      child_path = child.attrib['path']
+      abs_repo_path = os.path.join(root_path,child_path)
+      curr_hash = get_hash(abs_repo_path)
+      child.attrib['revision'] = curr_hash
+      file_changed = True
+      print("Child path is %s with hash %s"%(abs_repo_path, curr_hash))
+  if file_changed:
+    tree.write(path, encoding='utf-8', xml_declaration=True)
+
+def main():
+  repo_main, rel_repo_dir = _FindRepo()
+  local_manifest_dir = os.path.join(rel_repo_dir, S_local_manifests)
+  local_manifest_files = os.listdir(local_manifest_dir)
+  for f in local_manifest_files:
+    f = os.path.join(local_manifest_dir, f)
+    if os.path.isfile(f):
+      handle_local_manifest(rel_repo_dir, f)
+
+  hash = get_hash("/home/till/yetu-os2/src/third_party/yetu-overlay")
+  print("Got hash %s"%hash)
+
+if __name__ == "__main__":
+  main()
